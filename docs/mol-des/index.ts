@@ -5,18 +5,18 @@ const ctx: CanvasRenderingContext2D = (() => {
 	if (possibleContext)
 		return possibleContext;
 	else
-		throw new Error('Failed to get 2d contex');
+		throw new Error('failed to get 2d contex');
 })();
 
 type Point = { x: number, y: number };
 type Bond = { o: number, n: number };
 type Atom = { pos: Point, e: string, bonds: Bond[] };
 
-let topLeft: Point = { x: 0, y: 0 };
 //1 = default draw
 let action: number = 1;
 let isPerfroming: boolean = false;
-let actionPos: Point = { x: 0, y: 0};
+let startActionPos: Point = { x: 0, y: 0};
+let endActionPos: Point = { x: 0, y: 0};
 
 let atoms: Atom[] = [];
 let tempAtoms: Atom[] = [];
@@ -29,112 +29,232 @@ function resize() {
 window.addEventListener('resize', () => { resize(), refresh() });
 resize();
 
-canvas.addEventListener('mousedown', (e) => {
-	actionPos = { x: e.clientX, y: e.clientY };
-	
-	if (action == 1 && e.button == 0) {
-		isPerfroming = true;
-		tempAtoms.push({ pos: actionPos, e: 'C', bonds: [] });
-		refresh();
-	}
-});
-canvas.addEventListener('mousemove', (e) => {
-	if (!isPerfroming)
-		return;
-	actionPos = { x: e.clientX, y: e.clientY };
+const buttons: HTMLDivElement[] = [];
+for (let i = 0; i < 4; i++) {
+	buttons.push(document.getElementById("but" + i) as HTMLDivElement);
+	buttons[i].addEventListener('mousedown', (e) => {
+		e.preventDefault();
+		buttons[action].style.backgroundColor = "rgb(50, 50, 50)";
+		buttons[i].style.backgroundColor = "rgb(160, 40, 40)"
+		action = i;
+	})
+}
+buttons[1].style.backgroundColor = "rgb(160, 40, 40)";
 
+function performAction() {
 	if (action == 1) {
-		const s: number = 60;
-		let d: Point = { x: actionPos.x - tempAtoms[0].pos.x, 
-			y: actionPos.y - tempAtoms[0].pos.y };
+		const s: number = 45;
+		let d: Point = { x: endActionPos.x - startActionPos.x, 
+			y: endActionPos.y - startActionPos.y };
 		tempAtoms = [tempAtoms[0]];
 		tempAtoms[0].bonds = [];
 
 		let ang = Math.atan(-d.x/d.y);
-		let diag: Point = { x: Math.cos(ang)*45, y: Math.sin(ang)*45 }
+		let diag: Point = { x: Math.cos(ang)*30, y: Math.sin(ang)*30 }
 
 		let dist = Math.sqrt(d.x*d.x + d.y*d.y);
 		for (let i = 1; i < dist / s; i++) {
-			let p: Point = { x: tempAtoms[0].pos.x + d.x * i / ((dist - dist % s) / s), 
-				y: tempAtoms[0].pos.y + d.y * i / ((dist - dist % s) / s) }
+			let p: Point = { x: startActionPos.x + d.x * i / ((dist - dist % s) / s), 
+				y: startActionPos.y + d.y * i / ((dist - dist % s) / s) }
 
 			tempAtoms[i - 1].bonds.push({ o: i, n: 1 });
 			tempAtoms.push({ e: 'C', pos: p, bonds: [{o: i - 1, n: 1}]})
-
+			
+			//create zig-zag
 			if (i % 2 == 1 && dist / s > 2) {
-				tempAtoms[i].pos.x += diag.x * d.y / Math.abs(d.y);
-				tempAtoms[i].pos.y += diag.y * d.y / Math.abs(d.y);
+				let k = Math.sign(d.y) + Number(d.y == 0);
+				tempAtoms[i].pos.x += diag.x * k;
+				tempAtoms[i].pos.y += diag.y * k;
 			}
 		}
-		refresh();
 	}
-});
-canvas.addEventListener('mouseup', (e) => {
-	if (action == 1 && e.button == 0) {
-		isPerfroming = false;
-		let initAtoms = atoms.length;
-		for (let a = 0; a < tempAtoms.length; a++) {
-			tempAtoms[a].bonds.forEach((b) => { b.o += initAtoms })
-			atoms.push(tempAtoms[a])
-		}
-		tempAtoms = [];
+	if (action == 2) {
+		for (let i = 0; i < atoms.length; i++) {
+			let dx = endActionPos.x - atoms[i].pos.x;
+			let dy = endActionPos.y - atoms[i].pos.y;
+			if (dx*dx + dy*dy > 25*25)
+				continue;
 
-		refresh();
+			atoms.splice(i, 1);
+			atoms.forEach(a => {
+				for (let b = 0; b < a.bonds.length; b++) {
+					if (a.bonds[b].o == i) {
+						a.bonds.splice(b, 1);
+						b--;
+					}
+					else if (a.bonds[b].o > i)
+						a.bonds[b].o--;
+				}
+			})
+			i--;
+		}
 	}
-});
-canvas.addEventListener('mouseleave', () => {
+
+	refresh();
+}
+canvas.addEventListener('mousedown', (e) => {
+	if (isPerfroming || e.button != 0)
+		return;
+
+	startActionPos = { x: e.offsetX, y: e.offsetY };
+	endActionPos = { x: e.offsetX, y: e.offsetY };
+	
+	isPerfroming = true;
 	if (action == 1) {
-		isPerfroming = false;
+		tempAtoms.push({ pos: startActionPos, e: 'C', bonds: [] });
+		refresh();
+	}
+	if (action == 2)
+		performAction();
+});
+let lastCall = performance.now();
+canvas.addEventListener('mousemove', (e) => {
+	let now = performance.now();
+	if (!isPerfroming || (now - lastCall) < 1000 / 60)
+		return;
+
+	lastCall = now;
+	endActionPos = { x: e.offsetX, y: e.offsetY };
+	performAction();
+});
+
+async function finalizeAction() {
+	isPerfroming = false;
+	if (action == 1) {
 		let initAtoms = atoms.length;
 		for (let a = 0; a < tempAtoms.length; a++) {
 			tempAtoms[a].bonds.forEach((b) => { b.o += initAtoms })
 			atoms.push(tempAtoms[a])
 		}
 		tempAtoms = [];
-
 		refresh();
 	}
+	if (action == 2)
+		refresh();
+	else if (action == 3) {
+		refresh();
+
+		let x = Math.min(startActionPos.x, endActionPos.x);
+		let y = Math.min(startActionPos.y, endActionPos.y);
+		let w = Math.abs(endActionPos.x - startActionPos.x);
+		let h = Math.abs(endActionPos.y - startActionPos.y);
+
+		if (w == 0 || h == 0)
+			return;
+		let data = ctx.getImageData(x, y, w, h).data;
+
+		for (let i = 0; i < data.length; i += 4) {
+			let c = 255 - data[i] * (data[i + 3] / 255);
+			data[i + 0] = c;
+			data[i + 1] = c;
+			data[i + 2] = c;
+			data[i + 3] = 255;
+		}
+
+		const offscreenCanvas = new OffscreenCanvas(w, h);
+    const offscreenCtx = offscreenCanvas.getContext("2d");
+		if (!offscreenCtx) {
+			console.log("failed to get offscreen context")
+			return;
+		}
+    offscreenCtx.putImageData(new ImageData(data, w, h), 0, 0);
+
+    try {
+      const blob = await offscreenCanvas.convertToBlob({ type: "image/png" });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    } catch (err) {
+      console.error("failed to copy image:", err);
+    }
+	}
+}
+canvas.addEventListener('mouseup', (e) => {
+	if (isPerfroming && e.button == 0)
+		finalizeAction();
+});
+canvas.addEventListener('mouseenter', (e) => {
+	if (isPerfroming && !(e.buttons % 2))
+		finalizeAction();
 })
 
+function refresh() {
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+	ctx.globalAlpha = 1;
+	ctx.lineWidth = 2;
+	ctx.fillStyle = "rgb(255, 255, 255)"
+	ctx.font = "24px Arial";
+	ctx.strokeStyle = "rgb(255, 255, 255)"
+	drawAtoms(atoms);
+
+	if (!isPerfroming)
+		return;
+
+	if (action == 1)
+		drawAtoms(tempAtoms);
+	if (action == 2) {
+		ctx.globalAlpha = 0.1;
+		ctx.fillStyle = "rgb(255, 255, 255)";
+		ctx.beginPath();
+		ctx.arc(endActionPos.x, endActionPos.y, 25, 0, 2 * Math.PI);
+		ctx.fill();
+	}
+	else if (action == 3) {
+		ctx.globalAlpha = 0.1;
+		ctx.fillStyle = "rgb(255, 255, 255)";
+		let w = endActionPos.x - startActionPos.x;
+		let h = endActionPos.y - startActionPos.y;
+		ctx.fillRect(startActionPos.x, startActionPos.y, w, h);
+	}
+}
 function drawAtoms(as: Atom[]) {
+	const subscripts: string[] = [
+		"₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"
+	];
+
 	as.forEach((a, i) => {
-		if (a.e != 'C' || a.bonds.length < 2) {
+		if (a.e == 'C' && a.bonds.length < 2) {
+			let txt: string, dx: number = ctx.measureText('C').width / 2;
+			if (a.bonds.length == 1 && a.pos.x < as[a.bonds[0].o].pos.x) {
+				txt = 'H' + subscripts[4 - a.bonds.length] + 'C';
+				dx = ctx.measureText(txt).width - dx;
+			}
+			else
+				txt = 'CH' + subscripts[4 - a.bonds.length];
+
+			let size = ctx.measureText('C');
+			ctx.fillText(txt, a.pos.x - dx, a.pos.y + 9);
+		}
+		else if (a.e != 'C') {
 			let size = ctx.measureText(a.e);
-			ctx.fillText(a.e, a.pos.x - size.width / 2, a.pos.y - 24);
+			ctx.fillText(a.e, a.pos.x - size.width / 2, a.pos.y + 9);
 		}
 
 		for (let b = 0; b < a.bonds.length; b++) {
 			if (i < a.bonds[b].o)
 				continue;
-
-			let bondMissmatch = true;
-			for (let ob = 0; ob < as[a.bonds[b].o].bonds.length; ob++) {
-				if (as[a.bonds[b].o].bonds[ob].o == i && 
-					as[a.bonds[b].o].bonds[ob].n == a.bonds[b].n) {
-					bondMissmatch = false;
-					break;
-				}
-			}
-			if (bondMissmatch) 
-				console.log("Bond Missmatch", i, a.bonds[b].o, as);
-
-			ctx.beginPath();
-			let {x: x1, y: y1} = a.pos;
-			ctx.moveTo(x1, y1 - 32)
-			let {x: x2, y: y2} = as[a.bonds[b].o].pos;
-			ctx.lineTo(x2, y2 - 32);
-			ctx.stroke();
+			drawBond(a, as[a.bonds[b].o]);
 		}
 	});
 }
-function refresh() {
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
+function drawBond(a1: Atom, a2: Atom) {
+	let {x: x1, y: y1} = a1.pos;
+	let {x: x2, y: y2} = a2.pos;
 
-	ctx.lineWidth = 2;
-	ctx.fillStyle = "rgb(255, 255, 255)"
-	ctx.font = "24px Arial";
-	ctx.strokeStyle = "rgb(255, 255, 255)"
+	let ang = Math.atan((y2 - y1) / (x2 - x1));
+	if (x2 < x1) 
+		ang = Math.PI + ang;
 
-	drawAtoms(atoms);
-	drawAtoms(tempAtoms);
+	if ((a1.e == 'C' && a1.bonds.length < 2) || a1.e != 'C') {
+		x1 += 12 * Math.cos(ang);
+		y1 += 12 * Math.sin(ang);
+	}
+	if ((a2.e == 'C' && a2.bonds.length < 2) || a2.e != 'C') {
+		x2 -= 12 * Math.cos(ang);
+		y2 -= 12 * Math.sin(ang);
+	}
+
+	ctx.beginPath();
+	ctx.moveTo(x1, y1)
+	ctx.lineTo(x2, y2);
+	ctx.stroke();
 }
