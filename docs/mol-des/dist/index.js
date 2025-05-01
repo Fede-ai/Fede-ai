@@ -19,9 +19,10 @@ const ctx = (() => {
 //1 = default draw
 let action = 1;
 let isPerfroming = false;
-let atomSelected = -1;
 let startActionPos = { x: 0, y: 0 };
 let endActionPos = { x: 0, y: 0 };
+let atomSelected = -1;
+let bondSelected = { a1: -1, a2: -1 };
 let atoms = [];
 let indexTemp = -1;
 let branchingOff = -1, branchingInto = -1;
@@ -33,7 +34,7 @@ function resize() {
 window.addEventListener('resize', () => { resize(), refresh(); });
 resize();
 const buttons = [];
-for (let i = 0; i < 4; i++) {
+for (let i = 0; i < 6; i++) {
     buttons.push(document.getElementById("but" + i));
     buttons[i].addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -56,25 +57,22 @@ function performAction() {
         let d = { x: endActionPos.x - startActionPos.x,
             y: endActionPos.y - startActionPos.y };
         atoms = atoms.slice(0, indexTemp);
-        //remove bonds with temporary atoms
+        //remove bonds that branchingOff makes with a temporary atom
+        //or with the atom that it is branchingInto
         for (let b = 0; b < atoms[branchingOff].bonds.length; b++) {
-            if (atoms[branchingOff].bonds[b].o >= indexTemp) {
+            if (atoms[branchingOff].bonds[b].o >= indexTemp ||
+                atoms[branchingOff].bonds[b].o == branchingInto) {
                 atoms[branchingOff].bonds.splice(b, 1);
-                b--;
+                break;
             }
         }
+        //do the same but for the branchingInto atom
         if (branchingInto != -1) {
-            for (let b = 0; b < atoms[branchingOff].bonds.length; b++) {
-                if (atoms[branchingOff].bonds[b].o == branchingInto) {
-                    atoms[branchingOff].bonds.splice(b, 1);
-                    b--;
-                }
-            }
             for (let b = 0; b < atoms[branchingInto].bonds.length; b++) {
                 if (atoms[branchingInto].bonds[b].o >= indexTemp ||
                     atoms[branchingInto].bonds[b].o == branchingOff) {
                     atoms[branchingInto].bonds.splice(b, 1);
-                    b--;
+                    break;
                 }
             }
         }
@@ -85,12 +83,12 @@ function performAction() {
             let p = { x: startActionPos.x + d.x * i / ((dist - dist % s) / s),
                 y: startActionPos.y + d.y * i / ((dist - dist % s) / s) };
             if (i == 1) {
-                atoms[branchingOff].bonds.push({ o: indexTemp, n: 1 });
-                atoms.push({ e: 'C', pos: p, bonds: [{ o: branchingOff, n: 1 }] });
+                atoms[branchingOff].bonds.push({ o: indexTemp, n: 0 });
+                atoms.push({ e: 'C', pos: p, bonds: [{ o: branchingOff, n: 0 }] });
             }
             else {
-                atoms[indexTemp + i - 2].bonds.push({ o: indexTemp + i - 1, n: 1 });
-                atoms.push({ e: 'C', pos: p, bonds: [{ o: indexTemp + i - 2, n: 1 }] });
+                atoms[indexTemp + i - 2].bonds.push({ o: indexTemp + i - 1, n: 0 });
+                atoms.push({ e: 'C', pos: p, bonds: [{ o: indexTemp + i - 2, n: 0 }] });
             }
             //create zig-zag
             if (i % 2 == 1 && dist / s > 2) {
@@ -104,20 +102,20 @@ function performAction() {
             branchingInto = atomSelected;
             //connect directly without creating any atom
             if (dist / s < 1) {
-                atoms[branchingOff].bonds.push({ o: branchingInto, n: 1 });
-                atoms[branchingInto].bonds.push({ o: branchingOff, n: 1 });
+                atoms[branchingOff].bonds.push({ o: branchingInto, n: 0 });
+                atoms[branchingInto].bonds.push({ o: branchingOff, n: 0 });
             }
             //an atom was created but a direct connection is needed instead
             else if (dist / s < 2) {
                 atoms.pop();
                 atoms[branchingOff].bonds[atoms[branchingOff].bonds.length - 1].o = branchingInto;
-                atoms[branchingInto].bonds.push({ o: branchingOff, n: 1 });
+                atoms[branchingInto].bonds.push({ o: branchingOff, n: 0 });
             }
             //some atoms were created (erase one to create connection)
             else {
                 atoms.pop();
                 atoms[atoms.length - 1].bonds[1].o = branchingInto;
-                atoms[branchingInto].bonds.push({ o: atoms.length - 1, n: 1 });
+                atoms[branchingInto].bonds.push({ o: atoms.length - 1, n: 0 });
             }
         }
     }
@@ -141,11 +139,50 @@ function performAction() {
             i--;
         }
     }
+    if (action == 5 && bondSelected.a1 != -1) {
+        let { a1, a2 } = bondSelected;
+        for (let b = 0; b < atoms[a1].bonds.length; b++) {
+            if (atoms[a1].bonds[b].o == a2) {
+                atoms[a1].bonds[b].n = (atoms[a1].bonds[b].n + 1) % 3;
+                break;
+            }
+        }
+        for (let b = 0; b < atoms[a2].bonds.length; b++) {
+            if (atoms[a2].bonds[b].o == a1) {
+                atoms[a2].bonds[b].n = (atoms[a2].bonds[b].n + 1) % 3;
+                break;
+            }
+        }
+    }
     refresh();
 }
 function selectAtom(e) {
     if ((isPerfroming && action == 0) || action == 2)
         return;
+    if (action == 5) {
+        let closest = { a1: -1, a2: -1 }, shortestDist = 15 * 15;
+        for (let a = 0; a < atoms.length; a++) {
+            for (let b = 0; b < atoms[a].bonds.length; b++) {
+                if (a < atoms[a].bonds[b].o)
+                    continue;
+                let p1 = atoms[a].pos, p2 = atoms[atoms[a].bonds[b].o].pos;
+                if (e.offsetX < Math.min(p1.x, p2.x) || e.offsetX > Math.max(p1.x, p2.x) ||
+                    e.offsetY < Math.min(p1.y, p2.y) || e.offsetY > Math.max(p1.y, p2.y))
+                    continue;
+                let dx = e.offsetX - (p1.x + p2.x) / 2;
+                let dy = e.offsetY - (p1.y + p2.y) / 2;
+                if (dx * dx + dy * dy < shortestDist) {
+                    shortestDist = dx * dx + dy * dy;
+                    closest = { a1: a, a2: atoms[a].bonds[b].o };
+                }
+            }
+        }
+        if (closest != bondSelected) {
+            bondSelected = closest;
+            refresh();
+        }
+        return;
+    }
     const maxAtom = (indexTemp != -1) ? indexTemp : atoms.length;
     let closest = -1, shortestDist = 12 * 12;
     for (let i = 0; i < maxAtom; i++) {
@@ -180,7 +217,7 @@ canvas.addEventListener('mousedown', (e) => {
         }
         refresh();
     }
-    if (action == 2)
+    if (action == 2 || action == 5)
         performAction();
 });
 let lastCall = performance.now();
@@ -193,7 +230,8 @@ canvas.addEventListener('mousemove', (e) => {
         return;
     lastCall = now;
     endActionPos = { x: e.offsetX, y: e.offsetY };
-    performAction();
+    if (action != 5)
+        performAction();
 });
 function finalizeAction() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -267,6 +305,28 @@ function refresh() {
         ctx.lineTo(pos.x + l, pos.y + l - s);
         ctx.stroke();
     }
+    else if (action == 5 && bondSelected.a1 != -1) {
+        let x1 = Math.min(atoms[bondSelected.a1].pos.x, atoms[bondSelected.a2].pos.x);
+        let x2 = Math.max(atoms[bondSelected.a1].pos.x, atoms[bondSelected.a2].pos.x);
+        let y1 = Math.min(atoms[bondSelected.a1].pos.y, atoms[bondSelected.a2].pos.y);
+        let y2 = Math.max(atoms[bondSelected.a1].pos.y, atoms[bondSelected.a2].pos.y);
+        let l = 5, s = 7;
+        ctx.strokeStyle = "rgb(40, 40, 140)";
+        ctx.beginPath();
+        ctx.moveTo(x1 - l, y1 - l + s);
+        ctx.lineTo(x1 - l, y1 - l);
+        ctx.lineTo(x1 - l + s, y1 - l);
+        ctx.moveTo(x2 + l - s, y1 - l);
+        ctx.lineTo(x2 + l, y1 - l);
+        ctx.lineTo(x2 + l, y1 - l + s);
+        ctx.moveTo(x1 - l, y2 + l - s);
+        ctx.lineTo(x1 - l, y2 + l);
+        ctx.lineTo(x1 - l + s, y2 + l);
+        ctx.moveTo(x2 + l - s, y2 + l);
+        ctx.lineTo(x2 + l, y2 + l);
+        ctx.lineTo(x2 + l, y2 + l - s);
+        ctx.stroke();
+    }
     if (!isPerfroming)
         return;
     if (action == 2) {
@@ -289,19 +349,22 @@ function drawAtoms() {
         "₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"
     ];
     ctx.globalAlpha = 1;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.4;
     ctx.fillStyle = "rgb(255, 255, 255)";
     ctx.font = "24px Arial";
     ctx.strokeStyle = "rgb(255, 255, 255)";
     atoms.forEach((a, i) => {
         if (a.e == 'C' && a.bonds.length < 2) {
             let txt, dx = ctx.measureText('C').width / 2;
+            let nBonds = 0;
+            for (let b = 0; b < a.bonds.length; b++)
+                nBonds += a.bonds[b].n + 1;
             if (a.bonds.length == 1 && a.pos.x < atoms[a.bonds[0].o].pos.x) {
-                txt = 'H' + subscripts[4 - a.bonds.length] + 'C';
+                txt = 'H' + subscripts[4 - nBonds] + 'C';
                 dx = ctx.measureText(txt).width - dx;
             }
             else
-                txt = 'CH' + subscripts[4 - a.bonds.length];
+                txt = 'CH' + subscripts[4 - nBonds];
             let size = ctx.measureText('C');
             ctx.fillText(txt, a.pos.x - dx, a.pos.y + 9);
         }
@@ -322,16 +385,15 @@ function drawAtoms() {
                 console.log("Bond Missmatch", i, a.bonds[b].o, atoms);
             if (i < a.bonds[b].o)
                 continue;
-            drawBond(a, atoms[a.bonds[b].o]);
+            drawBond(a, atoms[a.bonds[b].o], a.bonds[b].n);
         }
     });
 }
-function drawBond(a1, a2) {
+function drawBond(a1, a2, n) {
     let { x: x1, y: y1 } = a1.pos;
     let { x: x2, y: y2 } = a2.pos;
-    let ang = Math.atan((y2 - y1) / (x2 - x1));
-    if (x2 < x1)
-        ang = Math.PI + ang;
+    let ang = Math.atan2(y2 - y1, x2 - x1);
+    //make bonds not "go into" the atoms
     if ((a1.e == 'C' && a1.bonds.length < 2) || a1.e != 'C') {
         x1 += 12 * Math.cos(ang);
         y1 += 12 * Math.sin(ang);
@@ -341,7 +403,12 @@ function drawBond(a1, a2) {
         y2 -= 12 * Math.sin(ang);
     }
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
+    let dx = Math.cos(Math.PI / 2 + ang) * 3;
+    let dy = Math.sin(Math.PI / 2 + ang) * 3;
+    for (let i = 0; i < n + 1; i++) {
+        let k = (i == 2) ? -1 : i;
+        ctx.moveTo(x1 + dx * k, y1 + dy * k);
+        ctx.lineTo(x2 + dx * k, y2 + dy * k);
+    }
     ctx.stroke();
 }
