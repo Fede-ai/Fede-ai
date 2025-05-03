@@ -8,13 +8,21 @@ body {
 
 .slider-container {
 	position: absolute;
-	top: 0.6em;
-	left: 0.6em;
+	top: 0.8em;
+	left: 0.8em;
 	display: flex;
 	flex-direction: column;
 }
 
 .slider {
 	width: 20em;
-	margin: 0.6em;
+	margin: 0.8em;
+}
+
+.value {
+	color: white;
+	margin: 0.8em 0em 0em 0.8em;
+
+	font-weight: bold;
+	font-family: Helvetica;
 }
