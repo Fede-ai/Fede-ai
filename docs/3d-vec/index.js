@@ -118,6 +118,13 @@ const updateVectors = () => {
 	let a = (alpha.value) / 180 * Math.PI;
 	let b = (beta.value) / 180 * Math.PI;
 	let g = Math.acos(Math.sqrt(1 - Math.cos(a)**2 - Math.cos(b)**2));
+
+	console.log(Math.round(Number(alpha.value) + Number(beta.value)))
+
+	if (Math.round(Number(alpha.value) + Number(beta.value)) == 90 || 
+		Math.abs(Math.round(Number(alpha.value) - Number(beta.value))) == 90) {
+		g = Math.PI / 2;
+	}
 	let r = Math.round(g * 180000 / Math.PI) / 1000
 	document.getElementById('gammaValue').textContent = "Value of Gamma: ± " + r + "°";
 		
