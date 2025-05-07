@@ -108,21 +108,22 @@ scene.add(vec2);
 
 const alpha = document.getElementById('alpha');
 const beta = document.getElementById('beta');
+const alphatb = document.getElementById('alphatb');
+const betatb = document.getElementById('betatb');
+let alphaAng = 40, betaAng = 40;
 const updateVectors = () => {
 	const aLabel = document.getElementById('alphaValue');
-	aLabel.textContent = "Value of Alpha: " + alpha.value + "°";
+	aLabel.textContent = "Value of Alpha: " + alphaAng + "°";
 
 	const bLabel = document.getElementById('betaValue');
-	bLabel.textContent = "Value of Beta: " + beta.value + "°";
+	bLabel.textContent = "Value of Beta: " + betaAng + "°";
 
-	let a = (alpha.value) / 180 * Math.PI;
-	let b = (beta.value) / 180 * Math.PI;
+	let a = (alphaAng) / 180 * Math.PI;
+	let b = (betaAng) / 180 * Math.PI;
 	let g = Math.acos(Math.sqrt(1 - Math.cos(a)**2 - Math.cos(b)**2));
 
-	console.log(Math.round(Number(alpha.value) + Number(beta.value)))
-
-	if (Math.round(Number(alpha.value) + Number(beta.value)) == 90 || 
-		Math.abs(Math.round(Number(alpha.value) - Number(beta.value))) == 90) {
+	if (Math.round(Number(alphaAng) + Number(betaAng)) == 90 || 
+		Math.abs(Math.round(Number(alphaAng) - Number(betaAng))) == 90) {
 		g = Math.PI / 2;
 	}
 	let r = Math.round(g * 180000 / Math.PI) / 1000
@@ -140,8 +141,13 @@ const updateVectors = () => {
 }
 updateVectors();
 
-alpha.addEventListener('input', () => {
-	let ang = (alpha.value) / 180 * Math.PI;
+const updateAlpha = (value) => {
+	value = Math.min(180, Math.max(value, 0));
+	alpha.value = value;
+	alphatb.value = value;
+	alphaAng = value;
+
+	let ang = (value) / 180 * Math.PI;
 	if (ang <= Math.PI / 2) {
 		cone1.geometry = new THREE.ConeGeometry(1.5 * Math.sin(ang), 
 			1.5 * Math.cos(ang), 64, 1, true, 0, Math.PI * 2);
@@ -156,9 +162,14 @@ alpha.addEventListener('input', () => {
 		cone1.position.z = -1.5 / 2 * Math.cos(ang);
 	}
 	updateVectors();
-});
-beta.addEventListener('input', () => {
-	let ang = (beta.value) / 180 * Math.PI;
+}
+const updateBeta = (value) => {
+	value = Math.min(180, Math.max(value, 0));
+	beta.value = value;
+	betatb.value = value;
+	betaAng = value;
+
+	let ang = (value) / 180 * Math.PI;
 	if (ang <= Math.PI / 2) {
 		cone2.geometry = new THREE.ConeGeometry(1.5 * Math.sin(ang), 
 			1.5 * Math.cos(ang), 64, 1, true, 0, Math.PI * 2);
@@ -173,6 +184,20 @@ beta.addEventListener('input', () => {
 		cone2.position.x = -1.5 / 2 * Math.cos(ang);
 	}
 	updateVectors();
+}
+
+alpha.addEventListener('input', () => {
+	updateAlpha(alpha.value);
+});
+alphatb.addEventListener('input', () => {
+	updateAlpha(alphatb.value);
+});
+
+beta.addEventListener('input', () => {
+	updateBeta(beta.value)
+});
+betatb.addEventListener('input', () => {
+	updateBeta(betatb.value);
 });
 
 window.addEventListener('resize', () => {
@@ -180,7 +205,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
 const animate = () => {
   requestAnimationFrame(animate);
 

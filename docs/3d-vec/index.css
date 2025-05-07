@@ -15,8 +15,17 @@ body {
 }
 
 .slider {
-	width: 25em;
+	width: 20em;
 	margin: 0.8em;
+}
+
+.tb {
+	width: 3em;
+	height: 1.2em;
+	margin: auto;
+
+	font-weight: bold;
+	font-family: Helvetica;
 }
 
 .value {
