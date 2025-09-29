@@ -4,7 +4,7 @@
   Welcome to Fede-ai's profile
 </h1>
 
-Hi, I'm a 17 yo self taught full stack programmer from Italy. I've been programming since I was 13 and I do it mainly for fun.
+Hi, I'm a 18 yo self taught full stack programmer from Italy. I've been programming since I was 13 and I do it mainly for fun.
 
 Right now, I mostly program in C++, using the SFML library and experimenting with neural networks (built mainly from scratch). I've recently started learning Javascript using React and Electron and that's what I think I will focus on for a while. I'm also planning to learn new languages like Typescript, Phyton or C#.
 
