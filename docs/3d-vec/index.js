@@ -122,12 +122,22 @@ const updateVectors = () => {
 	let b = (betaAng) / 180 * Math.PI;
 	let g = Math.acos(Math.sqrt(1 - Math.cos(a)**2 - Math.cos(b)**2));
 
+	let calc = Math.round(1000 * (1 - Math.cos(a)**2 - Math.cos(b)**2)) / 1000;
+	document.getElementById('calculations').textContent = "cos(Gamma)² = 1 - cos(Alpha)² - cos(Beta)² = " + calc
+
 	if (Math.round(Number(alphaAng) + Number(betaAng)) == 90 || 
 		Math.abs(Math.round(Number(alphaAng) - Number(betaAng))) == 90) {
 		g = Math.PI / 2;
 	}
+
 	let r = Math.round(g * 180000 / Math.PI) / 1000
-	document.getElementById('gammaValue').textContent = "Value of Gamma: ± " + r + "°";
+
+	if (r == 90)
+		document.getElementById('gammaValue').textContent = "Value of Gamma: 90°";
+	else if (!isNaN(r))
+		document.getElementById('gammaValue').textContent = "Values of Gamma: " + r + "°, (180 - " + r + ")°";
+	else
+		document.getElementById('gammaValue').textContent = "No angle Gamma is possible";
 		
 	const up = new THREE.Vector3(0, 1, 0);
 
