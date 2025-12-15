@@ -1,9 +1,10 @@
 body {
 	display: flex;
-	height: 100%;
-	width: 100%;
+	height: 100dvh;
+	width: 100dvw;
 	margin: 0;
 	overflow: hidden;
+	background-color: rgb(20, 20, 20);
 }
 
 canvas {
@@ -11,58 +12,53 @@ canvas {
 	user-select: none;
 }
 
+/* Buttons container */
 .buttons {
 	position: absolute;
 	display: flex;
+	left: 0;
+	top: clamp(0.5rem, 1.5vh, 1.2rem);
 	user-select: none;
-	left: 0vh;
-	top: 1.5vh;
-
-	.button {
-		background-color: rgb(50, 50, 50);
-		margin-left: 1.5vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-		border: 0.4vh solid rgb(50, 50, 50);
-		border-radius: 2vh;
-		width: 6vh;
-		height: 5vh;
-		padding: 0.5vh;
-
-		img {
-			width: 5vh;
-			height: 5vh;
-			user-select: none;
-		}
-	}
-
-	.button:active {
-		background-color: rgb(35, 35, 35);
-	}
 }
 
-.cr {
-	position: absolute;
-	color: rgb(180, 180, 180);
-	font-family: Helvetica;
-	font-weight: bold;
+/* Single button */
+.buttons .button {
+	background-color: rgb(50, 50, 50);
+	display: flex;
+	justify-content: center;
+	align-items: center;
 	user-select: none;
 
-	bottom: 1.5vh;
-	font-size: 3vh;
-	left: 1.5vh;
+	border: clamp(0.1rem, 0.3vh, 0.3rem) solid rgb(50, 50, 50);
+	border-radius: clamp(0.6rem, 1.5vh, 1.2rem);
+	margin-left: clamp(0.6rem, 1.5vh, 1.2rem);
+
+	width: clamp(2.2rem, 6vh, 3.5rem);
+	height: clamp(1.9rem, 5vh, 3rem);
+	padding: clamp(0.2rem, 0.6vh, 0.4rem);
+
 }
 
+.buttons .button img {
+	width: 80%;
+	height: auto;
+	max-height: 100%;
+	user-select: none;
+}
+
+.buttons .button:active {
+	background-color: rgb(35, 35, 35);
+}
+
+/* Version label */
 .ver {
 	position: absolute;
 	color: rgb(180, 180, 180);
-	font-family: Helvetica;
+	font-family: Helvetica, Arial, sans-serif;
 	font-weight: bold;
 	user-select: none;
 
-	bottom: 1.5vh;
-	font-size: 3vh;
-	right: 1.5vh;
+	right: clamp(0.5rem, 1.5vh, 1.2rem);
+	bottom: clamp(0.5rem, 1.5vh, 1.2rem);
+	font-size: clamp(0.7rem, 2vh, 1rem);
 }

@@ -43,13 +43,9 @@ document.addEventListener('contextmenu', (event) => {
 })
 
 const buttons = document.getElementById('buttons') as HTMLDivElement;
-const cr = document.getElementById('cr') as HTMLDivElement;
 const ver = document.getElementById('ver') as HTMLDivElement;
-ver.textContent = 'v 1.2.8';
+ver.textContent = 'v 1.3.1';
 buttons.addEventListener('touchmove', (event) => {
-  event.preventDefault();
-});
-cr.addEventListener('touchmove', (event) => {
   event.preventDefault();
 });
 ver.addEventListener('touchmove', (event) => {
@@ -105,13 +101,15 @@ canvas.addEventListener('touchstart', (event) => {
 		let touch = event.touches[0];
 		startAction(touch.clientX, touch.clientY, 0);
 	}
-	else if (event.touches.length == 2) {
-		let t1 = event.touches[0], t2 = event.touches[1];
-		const dx = t2.clientX - t1.clientX;
-		const dy = t2.clientY - t1.clientY;
-		touchesDistance =  Math.sqrt(dx * dx + dy * dy);
+	else if (event.touches.length === 2) {
+		const t1 = event.touches[0];
+		const t2 = event.touches[1];
+		touchesDistance = Math.hypot(
+			t2.clientX - t1.clientX,
+			t2.clientY - t1.clientY
+		);
 	}
-})
+}, { passive: false })
 function startAction(x: number, y: number, b: number) {
 	//start drawing or erasing
 	if (b == 0 && !isMoving && !isDrawing && !isErasing) {
@@ -165,33 +163,47 @@ document.addEventListener('mousemove', (event) => {
 canvas.addEventListener('touchmove', (event) => {
 	event.preventDefault();
 
-	if (event.touches.length == 1) {
-		let touch = event.touches[0];
-		performAction(touch.clientX, touch.clientY)
+	if (event.touches.length === 1) {
+		const touch = event.touches[0];
+		performAction(touch.clientX, touch.clientY);
 	}
-	else if (event.touches.length == 2) {
-		let t1 = event.touches[0], t2 = event.touches[1];
+	else if (event.touches.length === 2) {
+		const t1 = event.touches[0];
+		const t2 = event.touches[1];
+
 		const dx = t2.clientX - t1.clientX;
 		const dy = t2.clientY - t1.clientY;
-		const newDistance =  Math.sqrt(dx * dx + dy * dy);
+		const newDistance = Math.hypot(dx, dy);
 
-		performZoom((touchesDistance - newDistance) * 3);
+		const scale = touchesDistance / newDistance;
+
+		const midX = (t1.clientX + t2.clientX) / 2;
+		const midY = (t1.clientY + t2.clientY) / 2;
+
+		performZoom(scale, midX, midY);
 		touchesDistance = newDistance;
 	}
-})
-document.addEventListener('wheel', (event) => {
-	event.preventDefault();
-	performZoom(event.deltaY);
 }, { passive: false })
 
-function performZoom(delta: number) {
+canvas.addEventListener("wheel", (event) => {
+	event.preventDefault();
+
+	// Normalize wheel direction
+	const zoomIntensity = 0.0015; // tweak sensitivity
+	const scale = Math.exp(event.deltaY * zoomIntensity);
+
+	performZoom(scale, event.clientX, event.clientY);
+}, { passive: false });
+
+function performZoom(scale: number, anchorX: number, anchorY: number) {
 	const startZoom = zoom;
-	zoom *= (1 + delta / 1000);
+	zoom *= scale;
 	zoom = Math.min(Math.max(zoom, 0.1), 3);
-	
+
 	const d = zoom / startZoom;
-	center.x = (center.x - window.innerWidth / 2) / d + window.innerWidth / 2;
-	center.y = (center.y - window.innerHeight / 2) / d + window.innerHeight / 2;
+
+	center.x = (center.x - anchorX) / d + anchorX;
+	center.y = (center.y - anchorY) / d + anchorY;
 
 	if (isDrawing) {
 		isDrawing = false;
@@ -199,7 +211,7 @@ function performZoom(delta: number) {
 		currentLine = [];
 	}
 	isErasing = false;
-	
+
 	resetGraph();
 }
 let now = performance.now();
